@@ -1,0 +1,60 @@
+{
+    "name": "lbose/laravel-error-analyzer",
+    "description": "AI-driven error analysis, GitHub issue creation, and Slack notifications for Laravel applications",
+    "keywords": [
+        "laravel",
+        "error",
+        "analysis",
+        "gemini",
+        "github",
+        "slack",
+        "monitoring"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "LBOSE Corp",
+            "email": "dev@lbose.co.jp"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/queue": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "illuminate/notifications": "^11.0|^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.6",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.13"
+    },
+    "suggest": {
+        "google-gemini-php/laravel": "Required for Gemini AI error analysis (^2.0)",
+        "laravel/slack-notification-channel": "Required for Slack notifications (^3.4)"
+    },
+    "autoload": {
+        "psr-4": {
+            "Lbose\\ErrorAnalyzer\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Lbose\\ErrorAnalyzer\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Lbose\\ErrorAnalyzer\\ErrorAnalyzerServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

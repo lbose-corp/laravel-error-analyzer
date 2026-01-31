@@ -1,0 +1,9 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "declare_strict_types": true,
+        "trailing_comma_in_multiline": {
+            "elements": ["arrays", "arguments", "parameters"]
+        }
+    }
+}
