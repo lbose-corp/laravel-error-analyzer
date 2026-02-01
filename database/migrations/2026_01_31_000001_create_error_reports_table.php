@@ -11,6 +11,10 @@ return new class () extends Migration {
     {
         $tableName = config('error-analyzer.storage.table_name', 'error_reports');
 
+        if (Schema::hasTable($tableName)) {
+            return;
+        }
+
         Schema::create($tableName, function (Blueprint $table): void {
             $table->id();
             $table->string('exception_class');
