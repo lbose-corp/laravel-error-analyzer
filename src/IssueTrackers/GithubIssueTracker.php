@@ -233,6 +233,9 @@ final class GithubIssueTracker implements IssueTrackerInterface
 
     /**
      * GitHub Issueのタイトルを構築
+     *
+     * @param  array<string, mixed>  $analysis
+     * @param  array<string, mixed>  $sanitizedContext
      */
     private function buildIssueTitle(ErrorReport $report, array $analysis, array $sanitizedContext): string
     {
