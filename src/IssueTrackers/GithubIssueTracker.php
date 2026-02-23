@@ -161,8 +161,9 @@ final class GithubIssueTracker implements IssueTrackerInterface
      */
     private function handleRequestException(ErrorReport $report, RequestException $exception): array
     {
-        $response = $exception->response;
-        $httpStatus = $response?->status();
+        /** @var Response|null $response */
+        $response = $exception->response ?? null;
+        $httpStatus = $response instanceof Response ? $response->status() : null;
         $status = $this->mapGithubErrorStatus($response);
         $message = $this->extractGithubErrorMessage($response, $exception->getMessage());
 
