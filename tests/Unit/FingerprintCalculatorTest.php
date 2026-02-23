@@ -15,7 +15,7 @@ class FingerprintCalculatorTest extends TestCase
     {
         parent::setUp();
 
-        $this->calculator = new FingerprintCalculator();
+        $this->calculator = new FingerprintCalculator;
     }
 
     /** @test */

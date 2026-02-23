@@ -140,7 +140,7 @@ class AnalyzeErrorJob implements ShouldQueue
             }
 
             // インメモリのErrorReportを作成（DB保存はしない）
-            $report = new ErrorReport();
+            $report = new ErrorReport;
             $report->forceFill([
                 'exception_class' => $this->exceptionClass,
                 'message' => $this->message,
@@ -239,7 +239,7 @@ class AnalyzeErrorJob implements ShouldQueue
 
         return match ($driverName) {
             'mysql', 'mariadb', 'pgsql' => $errorCode === '23000',
-            'sqlite' => $errorCode === '19',
+            'sqlite' => in_array($errorCode, ['19', '23000'], true),
             'sqlsrv' => $errorCode === '2627',
             default => $errorCode === '23000',
         };

@@ -34,8 +34,8 @@ final class ErrorAnalyzerServiceProvider extends ServiceProvider
             $driver = config('error-analyzer.analyzer.driver', 'null');
 
             return match ($driver) {
-                'gemini' => new GeminiAnalyzer(),
-                default => new NullAnalyzer(),
+                'gemini' => new GeminiAnalyzer,
+                default => new NullAnalyzer,
             };
         });
 
@@ -44,8 +44,8 @@ final class ErrorAnalyzerServiceProvider extends ServiceProvider
             $driver = config('error-analyzer.issue_tracker.driver', 'null');
 
             return match ($driver) {
-                'github' => new GithubIssueTracker(),
-                default => new NullIssueTracker(),
+                'github' => new GithubIssueTracker,
+                default => new NullIssueTracker,
             };
         });
 
@@ -54,8 +54,8 @@ final class ErrorAnalyzerServiceProvider extends ServiceProvider
             $driver = config('error-analyzer.notification.driver', 'null');
 
             return match ($driver) {
-                'slack' => new SlackNotificationChannel(),
-                default => new NullNotificationChannel(),
+                'slack' => new SlackNotificationChannel,
+                default => new NullNotificationChannel,
             };
         });
     }
@@ -69,14 +69,6 @@ final class ErrorAnalyzerServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/error-analyzer.php' => config_path('error-analyzer.php'),
         ], ['error-analyzer', 'error-analyzer-config']);
-
-        // マイグレーションのpublish
-        if (! class_exists('CreateErrorReportsTable')) {
-            $timestamp = date('Y_m_d_His', time());
-            $this->publishes([
-                __DIR__.'/../database/migrations/create_error_reports_table.php.stub' => database_path("migrations/{$timestamp}_create_error_reports_table.php"),
-            ], ['error-analyzer', 'error-analyzer-migrations']);
-        }
 
         // マイグレーションのロード（開発環境用、DB保存が有効な場合のみ）
         $storageDriver = (string) config('error-analyzer.storage.driver', 'database');

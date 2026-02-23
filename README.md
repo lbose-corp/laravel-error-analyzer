@@ -31,10 +31,9 @@ Publish the configuration file:
 php artisan vendor:publish --tag=error-analyzer-config
 ```
 
-Publish and run migrations:
+Publish the configuration and run migrations:
 
 ```bash
-php artisan vendor:publish --tag=error-analyzer-migrations
 php artisan migrate
 ```
 
@@ -73,9 +72,6 @@ Install optional dependencies based on your needs:
 ```bash
 # For Gemini AI analysis
 composer require google-gemini-php/laravel
-
-# For Slack notifications
-composer require laravel/slack-notification-channel
 ```
 
 ## Basic Usage
@@ -133,7 +129,7 @@ Test error analysis:
 
 ```bash
 # Trigger a test error
-php artisan errors:test-analysis --trigger=runtime
+php artisan errors:test-analysis --type=runtime
 
 # List all error reports
 php artisan errors:test-analysis --list
@@ -228,6 +224,8 @@ The package includes comprehensive tests:
 ```bash
 cd packages/laravel-error-analyzer
 composer install
+vendor/bin/pint --test
+vendor/bin/phpstan analyse -l 6 --memory-limit=1G
 vendor/bin/phpunit
 ```
 

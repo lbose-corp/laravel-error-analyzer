@@ -16,7 +16,7 @@ class ErrorAnalysisServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ErrorAnalysisService();
+        $this->service = new ErrorAnalysisService;
         Cache::flush();
     }
 

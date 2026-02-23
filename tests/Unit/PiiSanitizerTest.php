@@ -15,7 +15,7 @@ class PiiSanitizerTest extends TestCase
     {
         parent::setUp();
 
-        $this->sanitizer = new PiiSanitizer();
+        $this->sanitizer = new PiiSanitizer;
     }
 
     /** @test */

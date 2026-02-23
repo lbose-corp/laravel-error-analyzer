@@ -15,7 +15,7 @@ class NullNotificationChannelTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->channel = new NullNotificationChannel();
+        $this->channel = new NullNotificationChannel;
     }
 
     public function test_notify_does_nothing(): void

@@ -13,7 +13,7 @@ class ErrorReportTest extends TestCase
     {
         config(['error-analyzer.storage.table_name' => 'custom_errors']);
 
-        $report = new ErrorReport();
+        $report = new ErrorReport;
 
         $this->assertSame('custom_errors', $report->getTable());
     }
@@ -22,7 +22,7 @@ class ErrorReportTest extends TestCase
     {
         config(['error-analyzer.storage.table_name' => null]);
 
-        $report = new ErrorReport();
+        $report = new ErrorReport;
 
         $this->assertSame('error_reports', $report->getTable());
     }
