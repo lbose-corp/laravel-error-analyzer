@@ -4,6 +4,13 @@ All notable changes to `laravel-error-analyzer` will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Resolved `composer install` failure caused by requiring unsupported `illuminate/foundation` for Laravel 11/12
+
+### Changed
+- Removed unused dependencies (`illuminate/notifications`, `mockery/mockery`)
+- Updated Japanese README optional dependency instructions to match current implementation
+
 ### Added
 - Initial release
 - AI-driven error analysis using Google Gemini
