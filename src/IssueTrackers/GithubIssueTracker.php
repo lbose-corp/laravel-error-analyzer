@@ -26,13 +26,13 @@ final class GithubIssueTracker implements IssueTrackerInterface
 
     private const MAX_TITLE_LENGTH = 80;
 
+    private readonly IssueTitleGeneratorInterface $issueTitleGenerator;
+
     public function __construct(
         ?IssueTitleGeneratorInterface $issueTitleGenerator = null,
     ) {
         $this->issueTitleGenerator = $issueTitleGenerator ?? new NullIssueTitleGenerator;
     }
-
-    private readonly IssueTitleGeneratorInterface $issueTitleGenerator;
 
     /**
      * GitHub Issueを作成
@@ -162,13 +162,14 @@ final class GithubIssueTracker implements IssueTrackerInterface
     private function handleRequestException(ErrorReport $report, RequestException $exception): array
     {
         $response = $exception->response;
+        $httpStatus = $response?->status();
         $status = $this->mapGithubErrorStatus($response);
         $message = $this->extractGithubErrorMessage($response, $exception->getMessage());
 
         Log::error('GitHub Issue連携に失敗しました。', [
             'error_report_id' => $report->id,
             'exception' => $exception::class,
-            'http_status' => $response->status(),
+            'http_status' => $httpStatus,
             'status' => $status,
             'message' => $message,
         ]);

@@ -18,7 +18,13 @@ class GeminiIssueTitleGeneratorTest extends TestCase
         $quotaService = app(ErrorAnalysisService::class);
         $quotaService->resetDailyCount();
 
-        $generator = new GeminiIssueTitleGenerator($quotaService);
+        $generator = new class($quotaService) extends GeminiIssueTitleGenerator
+        {
+            protected function assertGeminiDependencyIsInstalled(): void
+            {
+                // Dependency check is irrelevant for the quota-exhausted branch.
+            }
+        };
 
         $this->assertNull($generator->generateTitleSuffix(
             $this->makeReport(),
@@ -27,7 +33,7 @@ class GeminiIssueTitleGeneratorTest extends TestCase
         ));
     }
 
-    public function test_throws_when_gemini_dependency_is_missing_after_quota_is_consumed(): void
+    public function test_does_not_consume_quota_when_gemini_dependency_is_missing(): void
     {
         if (class_exists(\Gemini\Laravel\Facades\Gemini::class)) {
             $this->markTestSkipped('Gemini dependency is installed in this environment.');
@@ -42,7 +48,11 @@ class GeminiIssueTitleGeneratorTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('google-gemini-php/laravel');
 
-        $generator->generateTitleSuffix($this->makeReport(), [], []);
+        try {
+            $generator->generateTitleSuffix($this->makeReport(), [], []);
+        } finally {
+            $this->assertSame(0, $quotaService->getTodayCount());
+        }
     }
 
     private function makeReport(): ErrorReport

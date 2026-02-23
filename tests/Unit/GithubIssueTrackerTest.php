@@ -209,7 +209,7 @@ class GithubIssueTrackerTest extends TestCase
         });
 
         $this->assertNotNull($capturedTitle);
-        $this->assertLessThanOrEqual(80, strlen($capturedTitle));
+        $this->assertLessThanOrEqual(80, mb_strlen($capturedTitle));
     }
 
     private function makeReport(): ErrorReport

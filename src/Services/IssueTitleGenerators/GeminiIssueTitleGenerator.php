@@ -25,6 +25,8 @@ class GeminiIssueTitleGenerator implements IssueTitleGeneratorInterface
         array $analysis,
         array $sanitizedContext,
     ): ?string {
+        $this->assertGeminiDependencyIsInstalled();
+
         if (! $this->errorAnalysisService->tryIncrementIfAllowed()) {
             Log::info('AIタイトル生成をスキップしました（クォータ上限）。', [
                 'error_report_id' => $report->id,
@@ -34,8 +36,6 @@ class GeminiIssueTitleGenerator implements IssueTitleGeneratorInterface
 
             return null;
         }
-
-        $this->assertGeminiDependencyIsInstalled();
 
         $model = (string) config('error-analyzer.issue_tracker.github.ai_title.model', 'gemini-2.5-flash-lite');
         $prompt = $this->buildPrompt($report, $analysis, $sanitizedContext);
