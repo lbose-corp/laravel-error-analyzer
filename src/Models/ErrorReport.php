@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Lbose\ErrorAnalyzer\Models;
 
-use Database\Factories\ErrorReportFactory;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -31,7 +29,6 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ErrorReport extends Model
 {
-    use HasFactory;
     /**
      * @var list<string>
      */
@@ -119,10 +116,5 @@ class ErrorReport extends Model
     public function getRecommendedFixAttribute(): ?string
     {
         return $this->analysis['recommended_fix'] ?? null;
-    }
-
-    protected static function newFactory(): ErrorReportFactory
-    {
-        return ErrorReportFactory::new();
     }
 }

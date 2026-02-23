@@ -14,7 +14,7 @@ class NullAnalyzerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->analyzer = new NullAnalyzer();
+        $this->analyzer = new NullAnalyzer;
     }
 
     public function test_returns_placeholder_analysis(): void

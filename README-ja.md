@@ -73,9 +73,6 @@ ERROR_ANALYZER_STORAGE_DRIVER=database  # 'database'（既定） or 'null'（DB�
 ```bash
 # Gemini AI 分析
 composer require google-gemini-php/laravel
-
-# Slack 通知
-composer require laravel/slack-notification-channel
 ```
 
 ## 基本的な使い方

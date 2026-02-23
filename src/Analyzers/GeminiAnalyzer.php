@@ -30,6 +30,8 @@ final class GeminiAnalyzer implements AiAnalyzerInterface
         string $sanitizedTrace,
         array $sanitizedContext,
     ): array {
+        $this->assertGeminiDependencyIsInstalled();
+
         $prompt = $this->buildAnalysisPrompt(
             $exceptionClass,
             $message,
@@ -63,6 +65,17 @@ final class GeminiAnalyzer implements AiAnalyzerInterface
         }
 
         return $analysis;
+    }
+
+    private function assertGeminiDependencyIsInstalled(): void
+    {
+        if (class_exists(\Gemini\Laravel\Facades\Gemini::class)) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'Gemini analyzerを利用するには `google-gemini-php/laravel` をインストールしてください。',
+        );
     }
 
     /**

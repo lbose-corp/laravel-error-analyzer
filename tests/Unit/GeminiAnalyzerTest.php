@@ -6,89 +6,13 @@ namespace Lbose\ErrorAnalyzer\Tests\Unit;
 
 use Lbose\ErrorAnalyzer\Analyzers\GeminiAnalyzer;
 use Lbose\ErrorAnalyzer\Tests\TestCase;
+use RuntimeException;
 
 class GeminiAnalyzerTest extends TestCase
 {
-    public function test_extracts_json_from_code_block(): void
-    {
-        $analyzer = new GeminiAnalyzer();
-        $reflection = new \ReflectionClass($analyzer);
-        $method = $reflection->getMethod('extractJsonFromText');
-        $method->setAccessible(true);
-
-        $text = '```json
-{
-  "severity": "high",
-  "category": "database"
-}
-```';
-
-        $result = $method->invoke($analyzer, $text);
-
-        $this->assertStringNotContainsString('```', $result);
-        $this->assertJson($result);
-
-        $decoded = json_decode($result, true);
-        $this->assertSame('high', $decoded['severity']);
-        $this->assertSame('database', $decoded['category']);
-    }
-
-    public function test_extracts_json_from_plain_text(): void
-    {
-        $analyzer = new GeminiAnalyzer();
-        $reflection = new \ReflectionClass($analyzer);
-        $method = $reflection->getMethod('extractJsonFromText');
-        $method->setAccessible(true);
-
-        $text = 'Here is the analysis: {"severity": "low", "category": "other"} end';
-
-        $result = $method->invoke($analyzer, $text);
-
-        $this->assertJson($result);
-
-        $decoded = json_decode($result, true);
-        $this->assertSame('low', $decoded['severity']);
-        $this->assertSame('other', $decoded['category']);
-    }
-
-    public function test_handles_nested_json_objects(): void
-    {
-        $analyzer = new GeminiAnalyzer();
-        $reflection = new \ReflectionClass($analyzer);
-        $method = $reflection->getMethod('extractJsonFromText');
-        $method->setAccessible(true);
-
-        $text = '{"outer": {"inner": "value"}, "array": [1, 2, 3]}';
-
-        $result = $method->invoke($analyzer, $text);
-
-        $this->assertJson($result);
-
-        $decoded = json_decode($result, true);
-        $this->assertSame('value', $decoded['outer']['inner']);
-        $this->assertSame([1, 2, 3], $decoded['array']);
-    }
-
-    public function test_handles_json_with_escaped_quotes(): void
-    {
-        $analyzer = new GeminiAnalyzer();
-        $reflection = new \ReflectionClass($analyzer);
-        $method = $reflection->getMethod('extractJsonFromText');
-        $method->setAccessible(true);
-
-        $text = '{"message": "Error: \\"quoted\\" text"}';
-
-        $result = $method->invoke($analyzer, $text);
-
-        $this->assertJson($result);
-
-        $decoded = json_decode($result, true);
-        $this->assertStringContainsString('quoted', $decoded['message']);
-    }
-
     public function test_builds_correct_prompt(): void
     {
-        $analyzer = new GeminiAnalyzer();
+        $analyzer = new GeminiAnalyzer;
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('buildAnalysisPrompt');
         $method->setAccessible(true);
@@ -113,17 +37,24 @@ class GeminiAnalyzerTest extends TestCase
         $this->assertStringContainsString('category', $prompt);
     }
 
-    public function test_throws_exception_when_response_is_empty(): void
+    public function test_throws_runtime_exception_when_gemini_dependency_is_missing(): void
     {
-        // This test would require mocking the Gemini facade
-        // Since it's an optional dependency, we'll skip the full integration test
-        $this->markTestSkipped('Requires Gemini facade mocking');
-    }
+        if (class_exists(\Gemini\Laravel\Facades\Gemini::class)) {
+            $this->markTestSkipped('Gemini dependency is installed in this environment.');
+        }
 
-    public function test_throws_exception_when_json_parsing_fails(): void
-    {
-        // This test would require mocking the Gemini facade
-        // Since it's an optional dependency, we'll skip the full integration test
-        $this->markTestSkipped('Requires Gemini facade mocking');
+        $analyzer = new GeminiAnalyzer;
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('google-gemini-php/laravel');
+
+        $analyzer->analyze(
+            'RuntimeException',
+            'テスト用エラー',
+            '/tmp/test.php',
+            10,
+            'trace',
+            [],
+        );
     }
 }

@@ -257,6 +257,13 @@ class TestErrorAnalysis extends Command
      */
     private function showErrorReport(int $id): int
     {
+        if (! $this->isDatabaseStorageEnabled()) {
+            $this->error('DB保存が無効になっています。--show オプションはDB保存が有効な場合のみ使用できます。');
+            $this->info('DB保存を有効にするには、設定ファイルで error-analyzer.storage.driver を "database" に設定してください。');
+
+            return self::FAILURE;
+        }
+
         $report = ErrorReport::find($id);
 
         if (! $report) {

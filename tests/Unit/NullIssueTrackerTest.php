@@ -15,7 +15,7 @@ class NullIssueTrackerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tracker = new NullIssueTracker();
+        $this->tracker = new NullIssueTracker;
     }
 
     public function test_returns_disabled_status(): void

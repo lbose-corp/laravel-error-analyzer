@@ -82,7 +82,7 @@ class TestErrorAnalysisCommandTest extends TestCase
 
         $this->artisan('errors:test-analysis', ['--list' => true])
             ->expectsOutputToContain('最新の')
-            ->expectsOutputToContain('エラーレポート')
+            ->expectsOutputToContain('詳細を確認するには')
             ->assertExitCode(0);
     }
 

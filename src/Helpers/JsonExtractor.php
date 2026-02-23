@@ -13,7 +13,7 @@ final class JsonExtractor
      * JSONテキストを抽出（コードブロックから、または生のJSONから）
      *
      * @param  string  $text  抽出対象のテキスト
-     * @return string  抽出されたJSON文字列
+     * @return string 抽出されたJSON文字列
      */
     public static function extract(string $text): string
     {

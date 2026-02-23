@@ -14,6 +14,8 @@ use Lbose\ErrorAnalyzer\IssueTrackers\NullIssueTracker;
 use Lbose\ErrorAnalyzer\Jobs\AnalyzeErrorJob;
 use Lbose\ErrorAnalyzer\Models\ErrorReport;
 use Lbose\ErrorAnalyzer\Notifications\NullNotificationChannel;
+use Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface;
+use Lbose\ErrorAnalyzer\Services\Contracts\NotificationChannelInterface;
 use Lbose\ErrorAnalyzer\Tests\TestCase;
 
 class AnalyzeErrorJobTest extends TestCase
@@ -31,11 +33,11 @@ class AnalyzeErrorJobTest extends TestCase
         ]);
 
         $job->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         $this->assertDatabaseHas('error_reports', [
@@ -56,11 +58,11 @@ class AnalyzeErrorJobTest extends TestCase
         ]);
 
         $job->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         $report = ErrorReport::latest()->first();
@@ -80,11 +82,11 @@ class AnalyzeErrorJobTest extends TestCase
         // First error should be created
         $job1 = new AnalyzeErrorJob($exception, ['url' => 'http://example.com']);
         $job1->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         $this->assertDatabaseCount('error_reports', 1);
@@ -92,11 +94,11 @@ class AnalyzeErrorJobTest extends TestCase
         // Second identical error within dedupe window should be skipped
         $job2 = new AnalyzeErrorJob($exception, ['url' => 'http://example.com']);
         $job2->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // Should still be only 1 report
@@ -113,11 +115,11 @@ class AnalyzeErrorJobTest extends TestCase
         ]);
 
         $job->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         $report = ErrorReport::latest()->first();
@@ -136,20 +138,20 @@ class AnalyzeErrorJobTest extends TestCase
 
         $job1 = new AnalyzeErrorJob($exception1);
         $job1->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         $job2 = new AnalyzeErrorJob($exception2);
         $job2->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // Both should be created as they have different exception classes
@@ -181,11 +183,11 @@ class AnalyzeErrorJobTest extends TestCase
         ]);
 
         $job->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // DBには保存されないことを確認
@@ -203,21 +205,21 @@ class AnalyzeErrorJobTest extends TestCase
         // 最初のエラー
         $job1 = new AnalyzeErrorJob($exception, ['url' => 'http://example.com']);
         $job1->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // 2回目の同一エラーはスキップされる
         $job2 = new AnalyzeErrorJob($exception, ['url' => 'http://example.com']);
         $job2->handle(
-            analyzer: new NullAnalyzer(),
-            issueTracker: new NullIssueTracker(),
-            notificationChannel: new NullNotificationChannel(),
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            analyzer: new NullAnalyzer,
+            issueTracker: new NullIssueTracker,
+            notificationChannel: new NullNotificationChannel,
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // DBには保存されないことを確認
@@ -230,19 +232,19 @@ class AnalyzeErrorJobTest extends TestCase
         config()->set('error-analyzer.storage.driver', 'null');
         Cache::flush();
 
-        $mockNotification = $this->createMock(NullNotificationChannel::class);
+        $mockNotification = $this->createMock(NotificationChannelInterface::class);
         $mockNotification->expects($this->once())
             ->method('notify')
             ->with($this->isInstanceOf(ErrorReport::class));
 
-        $mockIssueTracker = $this->createMock(NullIssueTracker::class);
+        $mockIssueTracker = $this->createMock(IssueTrackerInterface::class);
         $mockIssueTracker->expects($this->once())
             ->method('createIssue')
             ->with(
                 $this->isInstanceOf(ErrorReport::class),
                 $this->isType('array'),
                 $this->isType('string'),
-                $this->isType('array')
+                $this->isType('array'),
             )
             ->willReturn(['status' => 'disabled']);
 
@@ -253,11 +255,11 @@ class AnalyzeErrorJobTest extends TestCase
         ]);
 
         $job->handle(
-            analyzer: new NullAnalyzer(),
+            analyzer: new NullAnalyzer,
             issueTracker: $mockIssueTracker,
             notificationChannel: $mockNotification,
-            fingerprintCalculator: new FingerprintCalculator(),
-            piiSanitizer: new PiiSanitizer(),
+            fingerprintCalculator: new FingerprintCalculator,
+            piiSanitizer: new PiiSanitizer,
         );
 
         // DBには保存されないことを確認
