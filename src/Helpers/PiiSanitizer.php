@@ -51,10 +51,31 @@ final class PiiSanitizer
      */
     public function sanitizeTrace(string $trace): string
     {
+        // Authorization Bearerヘッダをマスク
+        $trace = (string) preg_replace(
+            '/(Authorization\s*:\s*Bearer\s+)[A-Za-z0-9\-._~+\/]+=*/i',
+            '$1[BEARER_TOKEN_MASKED]',
+            $trace,
+        );
+
         // メールアドレスをマスク
         $trace = (string) preg_replace(
             '/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/',
             '[EMAIL_MASKED]',
+            $trace,
+        );
+
+        // JWTっぽいトークン（header.payload.signature）をマスク
+        $trace = (string) preg_replace(
+            '/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/',
+            '[JWT_MASKED]',
+            $trace,
+        );
+
+        // 一般的なAPIキー形式（例: Stripe）をマスク
+        $trace = (string) preg_replace(
+            '/\bsk_(?:live|test)_[A-Za-z0-9]{8,}\b/',
+            '[API_KEY_MASKED]',
             $trace,
         );
 

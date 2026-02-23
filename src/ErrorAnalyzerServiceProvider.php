@@ -15,7 +15,10 @@ use Lbose\ErrorAnalyzer\Notifications\NullNotificationChannel;
 use Lbose\ErrorAnalyzer\Notifications\SlackNotificationChannel;
 use Lbose\ErrorAnalyzer\Services\Contracts\AiAnalyzerInterface;
 use Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface;
+use Lbose\ErrorAnalyzer\Services\Contracts\IssueTitleGeneratorInterface;
 use Lbose\ErrorAnalyzer\Services\Contracts\NotificationChannelInterface;
+use Lbose\ErrorAnalyzer\Services\IssueTitleGenerators\GeminiIssueTitleGenerator;
+use Lbose\ErrorAnalyzer\Services\IssueTitleGenerators\NullIssueTitleGenerator;
 
 final class ErrorAnalyzerServiceProvider extends ServiceProvider
 {
@@ -39,12 +42,23 @@ final class ErrorAnalyzerServiceProvider extends ServiceProvider
             };
         });
 
+        // Issue Title Generator (optional)
+        $this->app->singleton(IssueTitleGeneratorInterface::class, function ($app): IssueTitleGeneratorInterface {
+            $enabled = (bool) config('error-analyzer.issue_tracker.github.ai_title.enabled', false);
+
+            if (! $enabled) {
+                return new NullIssueTitleGenerator;
+            }
+
+            return $app->make(GeminiIssueTitleGenerator::class);
+        });
+
         // Issue Tracker
         $this->app->singleton(IssueTrackerInterface::class, function ($app): IssueTrackerInterface {
             $driver = config('error-analyzer.issue_tracker.driver', 'null');
 
             return match ($driver) {
-                'github' => new GithubIssueTracker,
+                'github' => $app->make(GithubIssueTracker::class),
                 default => new NullIssueTracker,
             };
         });

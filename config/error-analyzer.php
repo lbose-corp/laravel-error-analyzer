@@ -18,7 +18,7 @@ return [
 
         'gemini' => [
             'api_key' => env('ERROR_ANALYZER_GEMINI_API_KEY', env('GEMINI_API_KEY')),
-            'model' => env('ERROR_ANALYZER_GEMINI_MODEL', 'gemini-2.0-flash'),
+            'model' => env('ERROR_ANALYZER_GEMINI_MODEL', 'gemini-2.5-flash'),
             'temperature' => env('ERROR_ANALYZER_GEMINI_TEMPERATURE', 0.3),
             'max_output_tokens' => env('ERROR_ANALYZER_GEMINI_MAX_TOKENS', 8000),
         ],
@@ -42,6 +42,10 @@ return [
             'repository' => env('ERROR_ANALYZER_GITHUB_REPOSITORY'),
             'labels' => explode(',', env('ERROR_ANALYZER_GITHUB_LABELS', 'bug,error-analysis')),
             'assignees' => explode(',', env('ERROR_ANALYZER_GITHUB_ASSIGNEES', '')),
+            'ai_title' => [
+                'enabled' => (bool) env('ERROR_ANALYZER_GITHUB_AI_TITLE_ENABLED', false),
+                'model' => env('ERROR_ANALYZER_GITHUB_AI_TITLE_MODEL', 'gemini-2.5-flash-lite'),
+            ],
         ],
     ],
 

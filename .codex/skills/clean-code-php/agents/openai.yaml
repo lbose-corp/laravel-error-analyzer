@@ -1,0 +1,4 @@
+interface:
+  display_name: "Clean Code PHP"
+  short_description: "Help apply Clean Code principles to PHP code"
+  default_prompt: "Review or refactor PHP code using clean-code-php principles."

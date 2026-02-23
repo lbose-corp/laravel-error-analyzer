@@ -87,74 +87,25 @@ class AnalyzeErrorJob implements ShouldQueue
         );
 
         $storageDriver = (string) config('error-analyzer.storage.driver', 'database');
+        $placeholderAttributes = $this->buildPlaceholderReportAttributes(
+            $fingerprint,
+            $dedupeWindow,
+            $sanitizedTrace,
+            $sanitizedContext,
+        );
 
         // ストレージドライバーに応じて処理を分岐
         if ($storageDriver === 'database') {
-            // DB保存モード: プレースホルダのErrorReportを先にinsert（原子的な予約）
-            try {
-                $report = ErrorReport::create([
-                    'exception_class' => $this->exceptionClass,
-                    'message' => $this->message,
-                    'file' => $this->file,
-                    'line' => $this->line,
-                    'fingerprint' => $fingerprint,
-                    'dedupe_window' => $dedupeWindow,
-                    'trace' => $sanitizedTrace,
-                    'severity' => 'medium', // プレースホルダ
-                    'category' => 'other', // プレースホルダ
-                    'analysis' => ['status' => 'processing'],
-                    'context' => $sanitizedContext,
-                    'occurred_at' => now(),
-                ]);
-            } catch (QueryException $e) {
-                // ユニーク制約違反 = 直近に同一分析が走っている/走った
-                if ($this->isUniqueConstraintViolation($e)) {
-                    Log::info('同一エラーが最近分析済みのためスキップしました。', [
-                        'exception' => $this->exceptionClass,
-                        'file' => $this->file,
-                        'line' => $this->line,
-                        'fingerprint' => $fingerprint,
-                    ]);
-
-                    return;
-                }
-
-                throw $e;
+            $report = $this->createDatabasePlaceholderReport($placeholderAttributes, $fingerprint);
+            if ($report === null) {
+                return;
             }
         } else {
-            // DB保存OFFモード: Cacheでdedupe
-            $dedupeKey = sprintf('error_analyzer:dedupe:%s:%d', $fingerprint, $dedupeWindow);
-            $dedupeWindowMinutes = (int) config('error-analyzer.analysis.dedupe_window_minutes', 5);
-            $ttl = ($dedupeWindowMinutes * 60) + 60; // ウィンドウ境界のズレ吸収のため+60秒
-
-            // Cache::add は既にキーが存在する場合は false を返す（原子的なチェック）
-            if (! Cache::add($dedupeKey, true, $ttl)) {
-                Log::info('同一エラーが最近分析済みのためスキップしました。', [
-                    'exception' => $this->exceptionClass,
-                    'file' => $this->file,
-                    'line' => $this->line,
-                    'fingerprint' => $fingerprint,
-                ]);
-
+            if (! $this->reserveCacheDedupe($fingerprint, $dedupeWindow)) {
                 return;
             }
 
-            // インメモリのErrorReportを作成（DB保存はしない）
-            $report = new ErrorReport;
-            $report->forceFill([
-                'exception_class' => $this->exceptionClass,
-                'message' => $this->message,
-                'file' => $this->file,
-                'line' => $this->line,
-                'fingerprint' => $fingerprint,
-                'dedupe_window' => $dedupeWindow,
-                'trace' => $sanitizedTrace,
-                'severity' => 'medium', // プレースホルダ
-                'category' => 'other', // プレースホルダ
-                'analysis' => ['status' => 'processing'],
-                'context' => $sanitizedContext,
-                'occurred_at' => now(),
-            ]);
+            $report = $this->createTransientPlaceholderReport($placeholderAttributes);
         }
 
         // AI解析を実行（失敗時は保存して終了）
@@ -168,19 +119,12 @@ class AnalyzeErrorJob implements ShouldQueue
                 $sanitizedContext,
             );
 
-            // 解析結果を反映
-            $report->severity = $analysis['severity'] ?? 'medium';
-            $report->category = $analysis['category'] ?? 'other';
-            $report->analysis = $analysis;
-
-            // DB保存モードの場合はDBに保存
-            if ($storageDriver === 'database') {
-                $report->update([
-                    'severity' => $report->severity,
-                    'category' => $report->category,
-                    'analysis' => $report->analysis,
-                ]);
-            }
+            $this->applyAnalysisResultToReport($report, $analysis);
+            $this->persistReportIfDatabase($report, $storageDriver, [
+                'severity' => $report->severity,
+                'category' => $report->category,
+                'analysis' => $report->analysis,
+            ]);
 
             // 通知送信
             $notificationChannel->notify($report);
@@ -188,14 +132,8 @@ class AnalyzeErrorJob implements ShouldQueue
             // Issue作成
             $issueResult = $issueTracker->createIssue($report, $analysis, $sanitizedTrace, $sanitizedContext);
             if ($issueResult['status'] !== 'disabled') {
-                $updatedAnalysis = $report->analysis;
-                $updatedAnalysis['github_issue'] = $issueResult;
-                $report->analysis = $updatedAnalysis;
-
-                // DB保存モードの場合はDBに保存
-                if ($storageDriver === 'database') {
-                    $report->update(['analysis' => $report->analysis]);
-                }
+                $this->appendIssueResultToReportAnalysis($report, $issueResult);
+                $this->persistReportIfDatabase($report, $storageDriver, ['analysis' => $report->analysis]);
             }
         } catch (Throwable $e) {
             // AI失敗時は失敗内容を保存して終了（リトライでAI再実行が増えない）
@@ -206,27 +144,139 @@ class AnalyzeErrorJob implements ShouldQueue
                 'exception' => $e::class,
             ]);
 
-            // 失敗情報を反映
-            $report->severity = 'medium';
-            $report->category = 'other';
-            $report->analysis = [
-                'status' => 'failed',
-                'ai_error' => [
-                    'message' => $e->getMessage(),
-                    'exception_class' => $e::class,
-                    'occurred_at' => now()->toIso8601String(),
-                ],
-            ];
-
-            // DB保存モードの場合はDBに保存
-            if ($storageDriver === 'database') {
-                $report->update([
-                    'severity' => $report->severity,
-                    'category' => $report->category,
-                    'analysis' => $report->analysis,
-                ]);
-            }
+            $this->applyFailureAnalysisToReport($report, $e);
+            $this->persistReportIfDatabase($report, $storageDriver, [
+                'severity' => $report->severity,
+                'category' => $report->category,
+                'analysis' => $report->analysis,
+            ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $sanitizedContext
+     * @return array<string, mixed>
+     */
+    private function buildPlaceholderReportAttributes(
+        string $fingerprint,
+        int $dedupeWindow,
+        string $sanitizedTrace,
+        array $sanitizedContext,
+    ): array {
+        return [
+            'exception_class' => $this->exceptionClass,
+            'message' => $this->message,
+            'file' => $this->file,
+            'line' => $this->line,
+            'fingerprint' => $fingerprint,
+            'dedupe_window' => $dedupeWindow,
+            'trace' => $sanitizedTrace,
+            'severity' => 'medium', // プレースホルダ
+            'category' => 'other', // プレースホルダ
+            'analysis' => ['status' => 'processing'],
+            'context' => $sanitizedContext,
+            'occurred_at' => now(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createDatabasePlaceholderReport(array $attributes, string $fingerprint): ?ErrorReport
+    {
+        try {
+            return ErrorReport::create($attributes);
+        } catch (QueryException $exception) {
+            if ($this->isUniqueConstraintViolation($exception)) {
+                $this->logDuplicateSkip($fingerprint);
+
+                return null;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createTransientPlaceholderReport(array $attributes): ErrorReport
+    {
+        $report = new ErrorReport;
+        $report->forceFill($attributes);
+
+        return $report;
+    }
+
+    private function reserveCacheDedupe(string $fingerprint, int $dedupeWindow): bool
+    {
+        $dedupeKey = sprintf('error_analyzer:dedupe:%s:%d', $fingerprint, $dedupeWindow);
+        $dedupeWindowMinutes = (int) config('error-analyzer.analysis.dedupe_window_minutes', 5);
+        $ttl = ($dedupeWindowMinutes * 60) + 60; // ウィンドウ境界のズレ吸収のため+60秒
+
+        if (Cache::add($dedupeKey, true, $ttl)) {
+            return true;
+        }
+
+        $this->logDuplicateSkip($fingerprint);
+
+        return false;
+    }
+
+    private function logDuplicateSkip(string $fingerprint): void
+    {
+        Log::info('同一エラーが最近分析済みのためスキップしました。', [
+            'exception' => $this->exceptionClass,
+            'file' => $this->file,
+            'line' => $this->line,
+            'fingerprint' => $fingerprint,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    private function persistReportIfDatabase(ErrorReport $report, string $storageDriver, array $values): void
+    {
+        if ($storageDriver !== 'database') {
+            return;
+        }
+
+        $report->update($values);
+    }
+
+    /**
+     * @param  array<string, mixed>  $analysis
+     */
+    private function applyAnalysisResultToReport(ErrorReport $report, array $analysis): void
+    {
+        $report->severity = $analysis['severity'] ?? 'medium';
+        $report->category = $analysis['category'] ?? 'other';
+        $report->analysis = $analysis;
+    }
+
+    private function applyFailureAnalysisToReport(ErrorReport $report, Throwable $exception): void
+    {
+        $report->severity = 'medium';
+        $report->category = 'other';
+        $report->analysis = [
+            'status' => 'failed',
+            'ai_error' => [
+                'message' => $exception->getMessage(),
+                'exception_class' => $exception::class,
+                'occurred_at' => now()->toIso8601String(),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $issueResult
+     */
+    private function appendIssueResultToReportAnalysis(ErrorReport $report, array $issueResult): void
+    {
+        $updatedAnalysis = $report->analysis;
+        $updatedAnalysis['github_issue'] = $issueResult;
+        $report->analysis = $updatedAnalysis;
     }
 
     /**

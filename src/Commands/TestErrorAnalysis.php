@@ -75,15 +75,7 @@ class TestErrorAnalysis extends Command
             }
         }
 
-        // クォータの確認
-        $service = app(ErrorAnalysisService::class);
-        $remainingQuota = $service->getRemainingQuota();
-        $dailyLimit = (int) config('error-analyzer.analysis.daily_limit', 100);
-        $this->info(sprintf('残りクォータ: %d / %d', $remainingQuota, $dailyLimit));
-
-        if ($remainingQuota <= 0) {
-            $this->error('本日の分析クォータが上限に達しています。');
-
+        if (! $this->showQuotaStatus()) {
             return self::FAILURE;
         }
 
@@ -130,30 +122,16 @@ class TestErrorAnalysis extends Command
      */
     private function runJobSync(\Throwable $exception): void
     {
-        $service = app(ErrorAnalysisService::class);
-        if (! $service->tryIncrementIfAllowed()) {
+        if (! $this->tryConsumeQuota()) {
             $this->error('クォータチェックに失敗しました。');
 
             return;
         }
 
-        $job = new AnalyzeErrorJob($exception, [
-            'environment' => app()->environment(),
-            'timestamp' => now()->toIso8601String(),
-            'url' => 'cli://test-error-analysis',
-            'user_id' => 'cli',
-            'ip' => '127.0.0.1',
-            'user_agent' => 'CLI Test Command',
-        ]);
+        $job = $this->makeAnalyzeErrorJob($exception);
 
         try {
-            $job->handle(
-                app(\Lbose\ErrorAnalyzer\Services\Contracts\AiAnalyzerInterface::class),
-                app(\Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface::class),
-                app(\Lbose\ErrorAnalyzer\Services\Contracts\NotificationChannelInterface::class),
-                app(\Lbose\ErrorAnalyzer\Helpers\FingerprintCalculator::class),
-                app(\Lbose\ErrorAnalyzer\Helpers\PiiSanitizer::class),
-            );
+            $this->executeAnalyzeJobSync($job);
             $this->info('✓ ジョブの実行が完了しました。');
 
             // 最新のエラーレポートを取得（DB保存が有効な場合のみ）
@@ -178,21 +156,13 @@ class TestErrorAnalysis extends Command
      */
     private function runJobAsync(\Throwable $exception): void
     {
-        $service = app(ErrorAnalysisService::class);
-        if (! $service->tryIncrementIfAllowed()) {
+        if (! $this->tryConsumeQuota()) {
             $this->error('クォータチェックに失敗しました。');
 
             return;
         }
 
-        dispatch(new AnalyzeErrorJob($exception, [
-            'environment' => app()->environment(),
-            'timestamp' => now()->toIso8601String(),
-            'url' => 'cli://test-error-analysis',
-            'user_id' => 'cli',
-            'ip' => '127.0.0.1',
-            'user_agent' => 'CLI Test Command',
-        ]));
+        dispatch($this->makeAnalyzeErrorJob($exception));
 
         $this->info('✓ ジョブをキューに投入しました。');
         $this->newLine();
@@ -208,10 +178,7 @@ class TestErrorAnalysis extends Command
      */
     private function listErrorReports(): int
     {
-        if (! $this->isDatabaseStorageEnabled()) {
-            $this->error('DB保存が無効になっています。--list オプションはDB保存が有効な場合のみ使用できます。');
-            $this->info('DB保存を有効にするには、設定ファイルで error-analyzer.storage.driver を "database" に設定してください。');
-
+        if (! $this->requireDatabaseStorage('--list')) {
             return self::FAILURE;
         }
 
@@ -257,10 +224,7 @@ class TestErrorAnalysis extends Command
      */
     private function showErrorReport(int $id): int
     {
-        if (! $this->isDatabaseStorageEnabled()) {
-            $this->error('DB保存が無効になっています。--show オプションはDB保存が有効な場合のみ使用できます。');
-            $this->info('DB保存を有効にするには、設定ファイルで error-analyzer.storage.driver を "database" に設定してください。');
-
+        if (! $this->requireDatabaseStorage('--show')) {
             return self::FAILURE;
         }
 
@@ -285,14 +249,16 @@ class TestErrorAnalysis extends Command
         $this->info('=== エラーレポート詳細 ===');
         $this->newLine();
 
-        $this->line(sprintf('ID: %d', $report->id));
-        $this->line(sprintf('例外クラス: %s', $report->exception_class));
-        $this->line(sprintf('メッセージ: %s', $report->message));
-        $this->line(sprintf('ファイル: %s:%d', $report->file, $report->line));
-        $this->line(sprintf('重要度: %s', $report->severity));
-        $this->line(sprintf('カテゴリ: %s', $report->category));
-        $this->line(sprintf('発生日時: %s', $report->occurred_at->format('Y-m-d H:i:s')));
-        $this->line(sprintf('フィンガープリント: %s', $report->fingerprint));
+        $this->displayKeyValueLines([
+            'ID' => (string) $report->id,
+            '例外クラス' => $report->exception_class,
+            'メッセージ' => $report->message,
+            'ファイル' => sprintf('%s:%d', $report->file, $report->line),
+            '重要度' => $report->severity,
+            'カテゴリ' => $report->category,
+            '発生日時' => $report->occurred_at->format('Y-m-d H:i:s'),
+            'フィンガープリント' => $report->fingerprint,
+        ]);
         $this->newLine();
 
         $analysis = $report->analysis;
@@ -300,52 +266,131 @@ class TestErrorAnalysis extends Command
             $this->line(sprintf('分析ステータス: %s', $analysis['status']));
         }
 
-        if (isset($analysis['root_cause'])) {
-            $this->newLine();
-            $this->info('【根本原因】');
-            $this->line($analysis['root_cause']);
-        }
+        $this->displayAnalysisTextSection($analysis, 'root_cause', '【根本原因】');
+        $this->displayAnalysisTextSection($analysis, 'impact', '【影響】');
+        $this->displayAnalysisTextSection($analysis, 'immediate_action', '【即時対応】');
+        $this->displayAnalysisTextSection($analysis, 'recommended_fix', '【推奨修正】');
+        $this->displayAnalysisTextSection($analysis, 'prevention', '【再発防止】');
 
-        if (isset($analysis['impact'])) {
-            $this->newLine();
-            $this->info('【影響】');
-            $this->line($analysis['impact']);
-        }
-
-        if (isset($analysis['immediate_action'])) {
-            $this->newLine();
-            $this->info('【即時対応】');
-            $this->line($analysis['immediate_action']);
-        }
-
-        if (isset($analysis['recommended_fix'])) {
-            $this->newLine();
-            $this->info('【推奨修正】');
-            $this->line($analysis['recommended_fix']);
-        }
-
-        if (isset($analysis['prevention'])) {
-            $this->newLine();
-            $this->info('【再発防止】');
-            $this->line($analysis['prevention']);
-        }
-
-        if (isset($analysis['github_issue'])) {
-            $this->newLine();
-            $this->info('【GitHub Issue】');
-            $githubIssue = $analysis['github_issue'];
-            if (isset($githubIssue['url'])) {
-                $this->line(sprintf('URL: %s', $githubIssue['url']));
-            }
-            if (isset($githubIssue['status'])) {
-                $this->line(sprintf('ステータス: %s', $githubIssue['status']));
-            }
-        }
+        $this->displayGithubIssueSection($analysis);
 
         if ($report->context) {
             $this->newLine();
             $this->info('【コンテキスト】');
             $this->line(json_encode($report->context, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        }
+    }
+
+    private function showQuotaStatus(): bool
+    {
+        $service = app(ErrorAnalysisService::class);
+        $remainingQuota = $service->getRemainingQuota();
+        $dailyLimit = (int) config('error-analyzer.analysis.daily_limit', 100);
+        $this->info(sprintf('残りクォータ: %d / %d', $remainingQuota, $dailyLimit));
+
+        if ($remainingQuota > 0) {
+            return true;
+        }
+
+        $this->error('本日の分析クォータが上限に達しています。');
+
+        return false;
+    }
+
+    private function tryConsumeQuota(): bool
+    {
+        return app(ErrorAnalysisService::class)->tryIncrementIfAllowed();
+    }
+
+    private function makeAnalyzeErrorJob(\Throwable $exception): AnalyzeErrorJob
+    {
+        return new AnalyzeErrorJob($exception, $this->buildJobContext());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function buildJobContext(): array
+    {
+        return [
+            'environment' => app()->environment(),
+            'timestamp' => now()->toIso8601String(),
+            'url' => 'cli://test-error-analysis',
+            'user_id' => 'cli',
+            'ip' => '127.0.0.1',
+            'user_agent' => 'CLI Test Command',
+        ];
+    }
+
+    private function executeAnalyzeJobSync(AnalyzeErrorJob $job): void
+    {
+        $job->handle(
+            app(\Lbose\ErrorAnalyzer\Services\Contracts\AiAnalyzerInterface::class),
+            app(\Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface::class),
+            app(\Lbose\ErrorAnalyzer\Services\Contracts\NotificationChannelInterface::class),
+            app(\Lbose\ErrorAnalyzer\Helpers\FingerprintCalculator::class),
+            app(\Lbose\ErrorAnalyzer\Helpers\PiiSanitizer::class),
+        );
+    }
+
+    private function requireDatabaseStorage(string $optionName): bool
+    {
+        if ($this->isDatabaseStorageEnabled()) {
+            return true;
+        }
+
+        $this->error(sprintf('DB保存が無効になっています。%s オプションはDB保存が有効な場合のみ使用できます。', $optionName));
+        $this->info('DB保存を有効にするには、設定ファイルで error-analyzer.storage.driver を "database" に設定してください。');
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $analysis
+     */
+    private function displayAnalysisTextSection(array $analysis, string $key, string $heading): void
+    {
+        $value = $analysis[$key] ?? null;
+        if (! is_string($value)) {
+            return;
+        }
+
+        $this->newLine();
+        $this->info($heading);
+        $this->line($value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $analysis
+     */
+    private function displayGithubIssueSection(array $analysis): void
+    {
+        $githubIssue = $analysis['github_issue'] ?? null;
+        if (! is_array($githubIssue)) {
+            return;
+        }
+
+        $this->newLine();
+        $this->info('【GitHub Issue】');
+
+        $issueUrl = $githubIssue['url'] ?? null;
+        if (is_string($issueUrl)) {
+            $this->line(sprintf('URL: %s', $issueUrl));
+        }
+
+        $issueStatus = $githubIssue['status'] ?? null;
+        if (is_string($issueStatus)) {
+            $this->line(sprintf('ステータス: %s', $issueStatus));
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $values
+     */
+    private function displayKeyValueLines(array $values): void
+    {
+        foreach ($values as $label => $value) {
+            $this->line(sprintf('%s: %s', $label, $value));
         }
     }
 }
