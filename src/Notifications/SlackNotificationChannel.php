@@ -16,6 +16,16 @@ use Throwable;
 final class SlackNotificationChannel implements NotificationChannelInterface
 {
     /**
+     * @var array<string, int>
+     */
+    private const SEVERITY_ORDER = [
+        'low' => 1,
+        'medium' => 2,
+        'high' => 3,
+        'critical' => 4,
+    ];
+
+    /**
      * Slackに通知を送信
      */
     public function notify(ErrorReport $report): void
@@ -59,10 +69,11 @@ final class SlackNotificationChannel implements NotificationChannelInterface
     public function shouldNotify(string $severity): bool
     {
         $minSeverity = (string) config('error-analyzer.notification.slack.min_severity', 'high');
-        $severityOrder = ['low' => 1, 'medium' => 2, 'high' => 3, 'critical' => 4];
-
-        $reportSeverityLevel = $severityOrder[$severity] ?? 0;
-        $minSeverityLevel = $severityOrder[$minSeverity] ?? 3;
+        $reportSeverityLevel = $this->severityLevel($severity);
+        $minSeverityLevel = $this->severityLevel($minSeverity);
+        if ($minSeverityLevel === 0) {
+            $minSeverityLevel = self::SEVERITY_ORDER['high'];
+        }
 
         return $reportSeverityLevel >= $minSeverityLevel;
     }
@@ -81,19 +92,13 @@ final class SlackNotificationChannel implements NotificationChannelInterface
         $rootCause = $report->analysis['root_cause'] ?? 'N/A';
         $impact = $report->analysis['impact'] ?? 'N/A';
 
-        $color = match ($report->severity) {
-            'critical' => 'danger',
-            'high' => 'warning',
-            default => 'good',
-        };
-
         $payload = [
             'username' => $username,
             'icon_emoji' => $icon,
-            'text' => '🚨 Critical Error Detected',
+            'text' => $this->resolveHeaderText($report->severity),
             'attachments' => [
                 [
-                    'color' => $color,
+                    'color' => $this->resolveAttachmentColor($report->severity),
                     'title' => $report->exception_class,
                     'fields' => [
                         [
@@ -133,5 +138,28 @@ final class SlackNotificationChannel implements NotificationChannelInterface
         }
 
         return $payload;
+    }
+
+    private function severityLevel(string $severity): int
+    {
+        return self::SEVERITY_ORDER[$severity] ?? 0;
+    }
+
+    private function resolveAttachmentColor(string $severity): string
+    {
+        return match ($severity) {
+            'critical' => 'danger',
+            'high' => 'warning',
+            default => 'good',
+        };
+    }
+
+    private function resolveHeaderText(string $severity): string
+    {
+        return match ($severity) {
+            'critical' => '🚨 Critical Error Detected',
+            'high' => '⚠️ High Severity Error Detected',
+            default => '⚠️ Error Detected',
+        };
     }
 }

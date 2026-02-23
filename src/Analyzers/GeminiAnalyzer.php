@@ -41,7 +41,7 @@ final class GeminiAnalyzer implements AiAnalyzerInterface
             $sanitizedContext,
         );
 
-        $model = (string) config('error-analyzer.analyzer.gemini.model', 'gemini-2.0-flash');
+        $model = (string) config('error-analyzer.analyzer.gemini.model', 'gemini-2.5-flash');
 
         /** @phpstan-ignore-next-line - Gemini facade is an optional dependency */
         $response = \Gemini\Laravel\Facades\Gemini::generativeModel(model: $model)->generateContent($prompt);

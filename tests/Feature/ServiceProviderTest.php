@@ -11,8 +11,11 @@ use Lbose\ErrorAnalyzer\IssueTrackers\NullIssueTracker;
 use Lbose\ErrorAnalyzer\Notifications\NullNotificationChannel;
 use Lbose\ErrorAnalyzer\Notifications\SlackNotificationChannel;
 use Lbose\ErrorAnalyzer\Services\Contracts\AiAnalyzerInterface;
+use Lbose\ErrorAnalyzer\Services\Contracts\IssueTitleGeneratorInterface;
 use Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface;
 use Lbose\ErrorAnalyzer\Services\Contracts\NotificationChannelInterface;
+use Lbose\ErrorAnalyzer\Services\IssueTitleGenerators\GeminiIssueTitleGenerator;
+use Lbose\ErrorAnalyzer\Services\IssueTitleGenerators\NullIssueTitleGenerator;
 use Lbose\ErrorAnalyzer\Tests\TestCase;
 
 class ServiceProviderTest extends TestCase
@@ -53,6 +56,24 @@ class ServiceProviderTest extends TestCase
         $this->assertInstanceOf(GithubIssueTracker::class, $tracker);
     }
 
+    public function test_registers_null_issue_title_generator_by_default(): void
+    {
+        config(['error-analyzer.issue_tracker.github.ai_title.enabled' => false]);
+
+        $generator = app(IssueTitleGeneratorInterface::class);
+
+        $this->assertInstanceOf(NullIssueTitleGenerator::class, $generator);
+    }
+
+    public function test_registers_gemini_issue_title_generator_when_configured(): void
+    {
+        config(['error-analyzer.issue_tracker.github.ai_title.enabled' => true]);
+
+        $generator = app(IssueTitleGeneratorInterface::class);
+
+        $this->assertInstanceOf(GeminiIssueTitleGenerator::class, $generator);
+    }
+
     public function test_registers_null_notification_channel_by_default(): void
     {
         config(['error-analyzer.notification.driver' => 'null']);
@@ -86,6 +107,8 @@ class ServiceProviderTest extends TestCase
         $this->assertNotNull(config('error-analyzer.notification.driver'));
         $this->assertNotNull(config('error-analyzer.analysis.daily_limit'));
         $this->assertNotNull(config('error-analyzer.storage.table_name'));
+        $this->assertNotNull(config('error-analyzer.issue_tracker.github.ai_title.enabled'));
+        $this->assertNotNull(config('error-analyzer.issue_tracker.github.ai_title.model'));
     }
 
     public function test_singletons_are_shared(): void
@@ -99,6 +122,11 @@ class ServiceProviderTest extends TestCase
         $tracker2 = app(IssueTrackerInterface::class);
 
         $this->assertSame($tracker1, $tracker2);
+
+        $titleGenerator1 = app(IssueTitleGeneratorInterface::class);
+        $titleGenerator2 = app(IssueTitleGeneratorInterface::class);
+
+        $this->assertSame($titleGenerator1, $titleGenerator2);
 
         $channel1 = app(NotificationChannelInterface::class);
         $channel2 = app(NotificationChannelInterface::class);

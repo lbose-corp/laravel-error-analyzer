@@ -53,6 +53,8 @@ ERROR_ANALYZER_GEMINI_API_KEY=your-gemini-api-key
 ERROR_ANALYZER_ISSUE_TRACKER=github
 ERROR_ANALYZER_GITHUB_TOKEN=your-github-token
 ERROR_ANALYZER_GITHUB_REPOSITORY=username/repository
+ERROR_ANALYZER_GITHUB_AI_TITLE_ENABLED=false
+ERROR_ANALYZER_GITHUB_AI_TITLE_MODEL=gemini-2.5-flash-lite
 
 # Notifications（任意）
 ERROR_ANALYZER_NOTIFICATION=slack
@@ -74,6 +76,8 @@ ERROR_ANALYZER_STORAGE_DRIVER=database  # 'database'（既定） or 'null'（DB�
 # Gemini AI 分析
 composer require google-gemini-php/laravel
 ```
+
+`ERROR_ANALYZER_GITHUB_AI_TITLE_ENABLED=true` を設定すると、IssueタイトルをGeminiで任意生成できます。生成に失敗した場合は既存のルールベースタイトルへ自動フォールバックし、タイトル生成の呼び出し回数は AI分析と同じ `ERROR_ANALYZER_DAILY_LIMIT` クォータに含まれます。
 
 ## 基本的な使い方
 

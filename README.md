@@ -31,7 +31,7 @@ Publish the configuration file:
 php artisan vendor:publish --tag=error-analyzer-config
 ```
 
-Publish the configuration and run migrations:
+Run migrations (package migrations are auto-loaded when `ERROR_ANALYZER_STORAGE_DRIVER=database`):
 
 ```bash
 php artisan migrate
@@ -52,6 +52,8 @@ ERROR_ANALYZER_GEMINI_API_KEY=your-gemini-api-key
 ERROR_ANALYZER_ISSUE_TRACKER=github
 ERROR_ANALYZER_GITHUB_TOKEN=your-github-token
 ERROR_ANALYZER_GITHUB_REPOSITORY=username/repository
+ERROR_ANALYZER_GITHUB_AI_TITLE_ENABLED=false
+ERROR_ANALYZER_GITHUB_AI_TITLE_MODEL=gemini-2.5-flash-lite
 
 # Notifications (optional)
 ERROR_ANALYZER_NOTIFICATION=slack
@@ -73,6 +75,8 @@ Install optional dependencies based on your needs:
 # For Gemini AI analysis
 composer require google-gemini-php/laravel
 ```
+
+If `ERROR_ANALYZER_GITHUB_AI_TITLE_ENABLED=true`, issue titles are optionally generated with Gemini and automatically fall back to the existing rule-based title when generation fails. Title generation uses the same `ERROR_ANALYZER_DAILY_LIMIT` quota as AI error analysis.
 
 ## Basic Usage
 
@@ -166,11 +170,13 @@ class CustomAnalyzer implements AiAnalyzerInterface
         // Your custom implementation
         return [
             'severity' => 'high',
-            'category' => 'runtime',
+            'category' => 'other',
             'root_cause' => 'Custom analysis',
             'impact' => 'Custom impact',
-            'solution' => 'Custom solution',
-            'related_code' => '',
+            'immediate_action' => 'Custom immediate action',
+            'recommended_fix' => 'Custom recommended fix',
+            'similar_issues' => [],
+            'prevention' => 'Custom prevention',
         ];
     }
 }
@@ -216,6 +222,8 @@ The package uses a driver-based architecture with the following components:
 - **ErrorAnalysisService**: Quota management and rate limiting
 - **FingerprintCalculator**: Error deduplication logic
 - **PiiSanitizer**: PII removal from stack traces and context
+
+PII masking currently targets common patterns (email, UUID, long hex tokens, Bearer/JWT-like tokens, some API keys). Application-specific secrets may still require custom masking.
 
 ## Testing
 

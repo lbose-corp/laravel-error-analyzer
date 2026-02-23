@@ -75,6 +75,42 @@ class PiiSanitizerTest extends TestCase
     }
 
     /** @test */
+    public function it_masks_bearer_tokens_in_trace(): void
+    {
+        $trace = 'Authorization: Bearer abcDEF123._-+/xyz=';
+
+        $sanitized = $this->sanitizer->sanitizeTrace($trace);
+
+        $this->assertStringNotContainsString('abcDEF123._-+/xyz=', $sanitized);
+        $this->assertStringContainsString('[BEARER_TOKEN_MASKED]', $sanitized);
+    }
+
+    /** @test */
+    public function it_masks_jwt_like_tokens_in_trace(): void
+    {
+        $jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.'
+            .'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.'
+            .'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+        $trace = "JWT token: {$jwt}";
+
+        $sanitized = $this->sanitizer->sanitizeTrace($trace);
+
+        $this->assertStringNotContainsString($jwt, $sanitized);
+        $this->assertStringContainsString('[JWT_MASKED]', $sanitized);
+    }
+
+    /** @test */
+    public function it_masks_common_api_keys_in_trace(): void
+    {
+        $trace = 'Stripe key sk_test_51Nabc1234567890XYZabcdef';
+
+        $sanitized = $this->sanitizer->sanitizeTrace($trace);
+
+        $this->assertStringNotContainsString('sk_test_51Nabc1234567890XYZabcdef', $sanitized);
+        $this->assertStringContainsString('[API_KEY_MASKED]', $sanitized);
+    }
+
+    /** @test */
     public function it_masks_uuids_in_trace(): void
     {
         $trace = 'Error for request: 550e8400-e29b-41d4-a716-446655440000';
