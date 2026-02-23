@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Lbose\ErrorAnalyzer\Tests\Unit;
 
 use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Lbose\ErrorAnalyzer\IssueTrackers\GithubIssueTracker;
 use Lbose\ErrorAnalyzer\Models\ErrorReport;
 use Lbose\ErrorAnalyzer\Services\Contracts\IssueTitleGeneratorInterface;

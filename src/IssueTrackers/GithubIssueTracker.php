@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Lbose\ErrorAnalyzer\Models\ErrorReport;
-use Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface;
 use Lbose\ErrorAnalyzer\Services\Contracts\IssueTitleGeneratorInterface;
+use Lbose\ErrorAnalyzer\Services\Contracts\IssueTrackerInterface;
 use Lbose\ErrorAnalyzer\Services\IssueTitleGenerators\NullIssueTitleGenerator;
 use Throwable;
 
