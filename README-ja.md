@@ -31,10 +31,9 @@ composer require lbose/laravel-error-analyzer
 php artisan vendor:publish --tag=error-analyzer-config
 ```
 
-マイグレーションを公開して実行します。
+マイグレーションを実行します（`ERROR_ANALYZER_STORAGE_DRIVER=database` の場合、パッケージのマイグレーションは自動ロードされます）。
 
 ```bash
-php artisan vendor:publish --tag=error-analyzer-migrations
 php artisan migrate
 ```
 
